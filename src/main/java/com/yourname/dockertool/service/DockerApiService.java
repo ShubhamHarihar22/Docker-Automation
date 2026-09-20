@@ -30,7 +30,9 @@ public class DockerApiService {
     private final DockerClient dockerClient;
 
     public DockerApiService() {
-        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                .withDockerHost("unix://" + System.getProperty("user.home") + "/.docker/run/docker.sock")
+                .build();
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
@@ -111,5 +113,18 @@ public class DockerApiService {
                     .ports(portStrings)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    public void pullImage(String imageName, String tag) throws IOException {
+        try {
+            dockerClient.pullImageCmd(imageName)
+                    .withTag(tag)
+                    .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<>())
+                    .awaitCompletion();
+        } catch (Exception e) {
+            log.error("Failed to pull Docker image {}:{}", imageName, tag, e);
+            throw new IOException("Failed to pull Docker image " + imageName + ":" + tag
+                    + ": " + e.getMessage(), e);
+        }
     }
 }
